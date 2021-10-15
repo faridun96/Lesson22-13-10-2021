@@ -1,0 +1,65 @@
+//пример многопоточности
+
+public static void ThreadProc() 
+        {
+            for (int i = 0; i < 10; i++) 
+            {
+                Console.WriteLine($"Поток под номером: {i}");
+                Thread.Sleep(0);
+            }
+        }
+        public static void Main() 
+        {
+            Thread t = new Thread(new ThreadStart(ThreadProc));
+            t.Start();
+            for (int i = 0; i < 4; i++) 
+            {
+                Console.WriteLine("Главный поток данных.");
+                Thread.Sleep(0);
+            }
+        }
+
+
+// пример ассинхронности
+
+static async void ReadWriteAsync()
+        {
+            string s = "Hello world! One step at a time";
+ 
+            using (StreamWriter writer = new StreamWriter("hello.txt", false))
+            {
+                await writer.WriteLineAsync(s); 
+            }
+            using (StreamReader reader = new StreamReader("hello.txt"))
+            {
+                string result = await reader.ReadToEndAsync();
+                Console.WriteLine(result);
+            }
+        } 
+        static void Main(string[] args)
+        {
+            ReadWriteAsync();
+             
+            Console.WriteLine("Некоторая работа");
+            Console.Read();
+        }
+
+
+// пример с параллельностью
+
+static void Main(string[] args)
+        {
+            Task task = new Task(Display);
+            task.Start();
+             
+            Console.WriteLine("Завершение метода Main");
+ 
+            Console.ReadLine();
+        }
+ 
+        static void Display()
+        {
+            Console.WriteLine("Начало работы метода Display");
+ 
+            Console.WriteLine("Завершение работы метода Display");
+        }
