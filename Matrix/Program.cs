@@ -1,208 +1,90 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
-using System.Text;
-
 
 namespace Matrix
 {
-    public static class Matrix
+    public class Program
     {
-        public const int Width = 80;
-        public const int Height = 40;
-        public const int Lines = 50;
-        public const int StartDelay = 10;
-
-        private static async Task LoopLine()
-        {
-            while (true)
-            {
-                var column = RandomHelper.Rand(0, Width);
-
-
-                await MatrixLine.StartNew(column);
-            }
-        }
-        public static async Task Start()
-        {
-            var tasks = new List<Task>();
-            for (int i = 0; i < Lines; i++)
-            {
-                var task = Task.Run(LoopLine);
-                tasks.Add(task);
-                await Task.Delay(StartDelay);
-            }
-        }
-    }
-    internal class MatrixLine
-    {
-        private const int MinLength = 3;
-        private const int MaxLength = 12;
-        private const int MinUpdateTime = 10;
-        private const int MaxUpdateTime = 100;
-
-        private const string Symbols = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXUZ*/+-=?~";
-        private readonly int Column;
-
-        private readonly int Length;
-        private readonly int UpdateTime;
-        private char _previous1 = ' ';
-        private char _previous2 = ' ';
-        private int Row;
-
-        private MatrixLine(int column)
-        {
-            Length = RandomHelper.Rand(MinLength, MaxLength + 1);
-            UpdateTime = RandomHelper.Rand(MinUpdateTime, MaxUpdateTime + 1);
-            Column = column;
-        }
-
-        public static async Task StartNew(int column)
-        {
-            var ml = new MatrixLine(column);
-            await ml.Start();
-        }
-
-        private async Task Start()
-        {
-            for (var i = 0; i < Matrix.Height + Length; i++)
-            {
-                Step();
-                await Task.Delay(UpdateTime);
-            }
-        }
-
-        private static bool InBounds(int row)
-        {
-            return row > 0 && row < Matrix.Height;
-        }
-
-        private void Step()
-        {
-            if (InBounds(Row - 2))
-            {
-                ConsoleHelper.Display(new ConsoleTask(Column, Row - 2, _previous2, ConsoleColor.DarkGreen));
-            }
-
-            if (InBounds(Row - 1))
-            {
-                ConsoleHelper.Display(new ConsoleTask(Column, Row - 1, _previous1, ConsoleColor.Green));
-                _previous2 = _previous1;
-            }
-
-            if (InBounds(Row))
-            {
-                var symbol = Symbols[RandomHelper.Rand(0, Symbols.Length)];
-                ConsoleHelper.Display(new ConsoleTask(Column, Row, symbol, ConsoleColor.White));
-                _previous1 = symbol;
-            }
-
-            if (InBounds(Row - Length))
-            {
-                ConsoleHelper.Display(new ConsoleTask(Column, Row - Length, ' ', ConsoleColor.Black));
-            }
-
-            Row++;
-        }
-    }
-    public class ConsoleTask
-    {
-        public readonly ConsoleColor Color;
-        public readonly int Column;
-        public readonly int Row;
-        public readonly char Symbol;
-
-        public ConsoleTask(int column, int row, char symbol, ConsoleColor color)
-        {
-            Color = color;
-            Column = column;
-            Row = row;
-            Symbol = symbol;
-        }
-    }
-
-    public static class ConsoleHelper
-    {
-        private static readonly ConcurrentQueue<ConsoleTask> Queue = new ConcurrentQueue<ConsoleTask>();
-        private static bool _inProcess;
-
-        static ConsoleHelper()
+        public static void Main(string[] args)
         {
             Console.CursorVisible = false;
-            Console.OutputEncoding = Encoding.UTF8;
-        }
-
-        public static void Display(ConsoleTask task)
-        {
-            Queue.Enqueue(task);
-            DisplayCore();
-        }
-
-        private static void DisplayCore()
-        {
+            Console.Clear();
+            Chain.frame = new char[Chain.maxX * Chain.maxY];
+            for (int i = 0; i < Chain.maxY; i++)
+                for (int j = 0; j < Chain.maxX; j++)
+                    Chain.frame[j + (i * Chain.maxX)] = ' ';
+            const int speed = 50;
+            Chain[] chains = new Chain[Chain.maxX * 2];
+            for (int i = 0; i < chains.Length; i++)
+            {
+                if (i % 2 == 0)
+                    chains[i] = new Chain(i / 2, Chain.random.Next(Chain.maxY * 2));
+                else
+                    chains[i] = new Chain(i / 2, Chain.random.Next(Chain.maxY * 2, Chain.maxY * 4));
+            }
             while (true)
             {
-                if (_inProcess)
+                Task task = Task.Delay(speed);
+                Console.SetCursorPosition(0, 0);
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                Console.Write(Chain.frame);
+                Console.ForegroundColor = ConsoleColor.Green;
+                for (int i = 0; i < chains.Length; i++)
                 {
-                    return;
-                }
-
-                lock (Queue)
-                {
-                    if (_inProcess)
+                    if (chains[i].posY > 1 && chains[i].posY - 1 < Chain.maxY)
                     {
-                        return;
-                    }
-
-                    _inProcess = true;
-                }
-
-                while (Queue.TryDequeue(out var task))
-                {
-                    Console.SetCursorPosition(task.Column, task.Row);
-                    Console.ForegroundColor = task.Color;
-                    Console.Write(task.Symbol);
-                }
-
-                lock (Queue)
-                {
-                    _inProcess = false;
-                    if (!Queue.IsEmpty)
-                    {
-                        continue;
+                        Console.SetCursorPosition(chains[i].posX, chains[i].posY - 1);
+                        Console.Write(Chain.chars[Chain.random.Next(Chain.chars.Length)]);
                     }
                 }
-
-                break;
+                Console.ForegroundColor = ConsoleColor.White;
+                for (int i = 0; i < chains.Length; i++)
+                {
+                    if (chains[i].posY > 0 && chains[i].posY < Chain.maxY)
+                    {
+                        Console.SetCursorPosition(chains[i].posX, chains[i].posY);
+                        Console.Write(Chain.chars[Chain.random.Next(Chain.chars.Length)]);
+                    }
+                }
+                for (int i = 0; i < chains.Length; i++)
+                    chains[i].MoveNext();
+                task.Wait();
             }
         }
     }
-
-    public static class RandomHelper
+    public class Chain
     {
-        private static int _seed = Environment.TickCount;
-
-        private static readonly ThreadLocal<Random> Random =
-                new ThreadLocal<Random>(() => new Random(Interlocked.Increment(ref _seed)));
-
-        public static int Rand(int min, int max)
+        public static string chars = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%^&*!";
+        public static int maxY = Console.WindowHeight - 1;
+        public static int maxX = Console.WindowWidth;
+        public static Random random = new Random();
+        public static char[] frame;
+        public readonly int posX;
+        public int posY = 0;
+        public int length;
+        public int tryies;
+        public int maxTryies;
+        public Chain(int x, int startSpeed)
         {
-            return Random.Value.Next(min, max);
+            posX = x;
+            tryies = startSpeed;
+            length = random.Next(10, 20);
+            maxTryies = random.Next(1, 3);
         }
-    }
-
-
-    class Program
-    {
-        static void Main(string[] args)
+        public void MoveNext()
         {
-            Console.SetWindowSize(Matrix.Width, Matrix.Height);
-
-            var task = Task.Run(Matrix.Start);
-
-            Console.ReadKey();
+            if (tryies-- > 1) return;
+            for (int i = 1; i < length && i <= posY; i++)
+            {
+                if (posY - i >= maxY) continue;
+                frame[posX + ((posY - i) * maxX)] = chars[random.Next(chars.Length)];
+            }
+            if (posY - length >= 0) frame[posX + ((posY - length) * maxX)] = ' ';
+            tryies = maxTryies;
+            if (++posY - length < maxY) return;
+            posY = 0;
+            tryies = random.Next(maxY * 2, maxY * 4);
+            maxTryies = random.Next(1, 3);
         }
     }
 }
